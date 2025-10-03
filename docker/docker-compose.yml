@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # Main RAG application
+  rag-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - QDRANT_URL=http://qdrant:6333
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=sqlite:///./data/rag_system.db
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+    volumes:
+      - rag-data:/app/data
+    depends_on:
+      - redis
+      - qdrant
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+  # Qdrant vector database
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+  # Redis cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - rag-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # Prometheus (optional - for metrics)
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    networks:
+      - rag-network
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+
+  # Grafana (optional - for visualization)
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - rag-network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+volumes:
+  rag-data:
+  qdrant-data:
+  redis-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  rag-network:
+    driver: bridge
