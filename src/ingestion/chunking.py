@@ -1,6 +1,7 @@
 """Text chunking strategies for document splitting."""
 
 import re
+import uuid
 from typing import List, Optional
 
 from ..observability.logging import get_logger
@@ -262,7 +263,8 @@ class DocumentChunker:
         # Create TextChunk objects
         chunks = []
         for i, text in enumerate(text_chunks):
-            chunk_id = f"{doc_id_prefix}{document.doc_id}_{i}"
+            chunk_key = f"{doc_id_prefix}{document.doc_id}:{i}"
+            chunk_id = str(uuid.uuid5(uuid.NAMESPACE_URL, chunk_key))
             metadata = {
                 **document.metadata,
                 "chunk_index": i,
