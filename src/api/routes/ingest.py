@@ -6,7 +6,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
-from ...api.dependencies import get_retriever_dependency, get_request_id
+from ...api.dependencies import get_retriever_dependency, get_request_id, verify_api_key
 from ...api.models import BatchIngestRequest, IngestRequest, IngestResponse
 from ...ingestion.chunking import DocumentChunker
 from ...ingestion.document_loaders import (
@@ -21,7 +21,11 @@ from ...utils.config import get_settings
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/ingest", tags=["ingest"])
+router = APIRouter(
+    prefix="/ingest",
+    tags=["ingest"],
+    dependencies=[Depends(verify_api_key)],
+)
 ALLOWED_EXTENSIONS = {".html", ".htm", ".md", ".pdf", ".txt"}
 
 

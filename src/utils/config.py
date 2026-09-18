@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     api_workers: int = Field(default=4, ge=1)
     cors_origins: List[str] = Field(default=["http://localhost:3000"])
     rate_limit_per_minute: int = Field(default=60, ge=1)
+    api_auth_key: str = Field(default="")
 
     # Embedding Model
     embedding_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2")

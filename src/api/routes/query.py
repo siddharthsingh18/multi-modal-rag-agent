@@ -4,14 +4,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from ...agents.rag_agent import RAGAgent
-from ...api.dependencies import get_rag_agent_dependency, get_request_id
+from ...api.dependencies import get_rag_agent_dependency, get_request_id, verify_api_key
 from ...api.models import DocumentResponse, QueryRequest, QueryResponse
 from ...observability.logging import get_logger
 from ...utils.exceptions import RAGException
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/query", tags=["query"])
+router = APIRouter(
+    prefix="/query",
+    tags=["query"],
+    dependencies=[Depends(verify_api_key)],
+)
 
 
 @router.post("", response_model=QueryResponse)

@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from fastapi import Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 
 from ..agents.rag_agent import RAGAgent, create_rag_agent
 from ..generation.llm_client import LLMClient, get_llm_client
@@ -52,7 +52,7 @@ def get_cache_dependency() -> CacheManager:
 
 async def verify_api_key(
     x_api_key: Optional[str] = Header(None),
-    settings: Settings = None,
+    settings: Settings = Depends(get_settings_dependency),
 ) -> str:
     """
     Verify API key from header.
@@ -67,21 +67,25 @@ async def verify_api_key(
     Raises:
         HTTPException: If API key is invalid
     """
-    # In production, implement proper API key verification
-    # For now, this is a placeholder
-
-    if settings and settings.is_production:
-        if not x_api_key:
+    if not settings.api_auth_key:
+        if settings.is_production:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="API key required",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="API authentication is not configured",
             )
+        return "development"
 
-        # Validate API key against database/config
-        # This is simplified - implement proper validation
-        logger.debug("API key verified")
+    import secrets
 
-    return x_api_key or "development"
+    if not x_api_key or not secrets.compare_digest(x_api_key, settings.api_auth_key):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API key",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+
+    logger.debug("API key verified")
+    return x_api_key
 
 
 def get_request_id(x_request_id: Optional[str] = Header(None)) -> str:
