@@ -1,7 +1,7 @@
 """Text chunking strategies for document splitting."""
 
 import re
-from typing import List
+from typing import List, Optional
 
 from ..observability.logging import get_logger
 from ..utils.config import get_settings

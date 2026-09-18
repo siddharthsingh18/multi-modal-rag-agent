@@ -63,6 +63,9 @@ dev = [
     "black>=24.0,<25.0",
     "ipython>=8.0,<9.0",
 ]
+pdf = [
+    "unstructured[pdf]==0.13.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

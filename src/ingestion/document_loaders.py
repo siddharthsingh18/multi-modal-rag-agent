@@ -6,8 +6,6 @@ from typing import Any, Dict, List, Optional
 
 import aiofiles
 from bs4 import BeautifulSoup
-from unstructured.partition.auto import partition
-from unstructured.partition.pdf import partition_pdf
 
 from ..observability.logging import get_logger
 from ..utils.exceptions import IngestionError
@@ -74,6 +72,7 @@ class PDFLoader(DocumentLoader):
         """
         try:
             logger.info(f"Loading PDF: {file_path}")
+            from unstructured.partition.pdf import partition_pdf
 
             # Run in thread pool to avoid blocking
             loop = asyncio.get_event_loop()
