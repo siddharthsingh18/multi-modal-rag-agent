@@ -163,6 +163,9 @@ VECTOR_DB_TYPE=qdrant  # or 'chroma'
 # Redis Cache
 REDIS_URL=redis://localhost:6379/0
 
+# API authentication (required in production)
+API_AUTH_KEY=replace_with_a_long_random_value
+
 # Observability
 LANGSMITH_API_KEY=your_langsmith_key  # Optional
 LANGSMITH_TRACING=false
@@ -250,6 +253,7 @@ asyncio.run(query_rag())
 ```bash
 curl -X POST http://localhost:8000/api/v1/query \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: ${API_AUTH_KEY}" \
   -d '{
     "query": "Explain neural networks",
     "top_k": 5,
@@ -261,6 +265,7 @@ curl -X POST http://localhost:8000/api/v1/query \
 ```bash
 curl -X POST http://localhost:8000/api/v1/query/stream \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: ${API_AUTH_KEY}" \
   -d '{"query": "What is deep learning?"}' \
   --no-buffer
 ```
