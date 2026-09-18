@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from ..api.routes import health, ingest, query
+from ..api.rate_limit import SlidingWindowRateLimiter
 from ..observability.logging import get_logger, setup_logging
 from ..utils.config import get_settings
 from ..utils.exceptions import RAGException
@@ -18,6 +19,7 @@ logger = get_logger(__name__)
 
 # Get settings
 settings = get_settings()
+rate_limiter = SlidingWindowRateLimiter(settings.rate_limit_per_minute)
 
 
 @asynccontextmanager
@@ -65,6 +67,21 @@ async def add_process_time_header(request: Request, call_next):
     process_time = time.time() - start_time
     response.headers["X-Process-Time"] = str(process_time)
     return response
+
+
+@app.middleware("http")
+async def enforce_rate_limit(request: Request, call_next):
+    """Reject requests that exceed the configured per-client limit."""
+    if request.url.path.startswith("/api/v1"):
+        client_key = request.client.host if request.client else "unknown"
+        if not rate_limiter.allow(client_key):
+            return JSONResponse(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                content={"detail": "Rate limit exceeded"},
+                headers={"Retry-After": "60"},
+            )
+
+    return await call_next(request)
 
 
 # Request logging middleware
