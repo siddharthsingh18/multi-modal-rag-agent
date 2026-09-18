@@ -97,6 +97,7 @@ curl -X POST http://localhost:8000/api/v1/query \
 ### Prerequisites
 
 - Python 3.10+
+- Python 3.10, 3.11, or 3.12 is recommended (Python 3.14 is not supported)
 - Docker & Docker Compose (for containerized deployment)
 - Tesseract OCR (for image processing)
 - Anthropic API key
@@ -111,7 +112,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 2. **Install dependencies:**
 ```bash
-pip install -r requirements.txt
+python -m pip install -e ".[dev]"
 ```
 
 3. **Install Tesseract (for OCR):**

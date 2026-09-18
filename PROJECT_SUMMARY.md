@@ -1,8 +1,9 @@
 # Project Summary: Multi-Modal RAG Agent
 
-## ✅ Project Status: COMPLETE
+## 🚧 Project Status: Foundation hardening in progress
 
-All 7 phases completed successfully. The system is production-ready.
+The core architecture is in place. Installation and test reliability are being
+validated before the system is described as production-ready.
 
 ## 📦 What Was Built
 

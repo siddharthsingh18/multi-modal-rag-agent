@@ -2,10 +2,10 @@
 
 # Installation
 install:
-	pip install -r requirements.txt
+	python -m pip install -e .
 
 install-dev: install
-	pip install black ruff pytest-cov ipython
+	python -m pip install -e ".[dev]"
 
 # Development
 run:
