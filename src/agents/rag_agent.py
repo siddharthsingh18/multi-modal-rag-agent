@@ -70,8 +70,9 @@ class RAGAgent(BaseAgent):
             ),
             "calculator": CalculatorTool(),
             "web_search": WebSearchTool(),
-            "code_executor": CodeExecutorTool(),
         }
+        if self.settings.enable_code_executor:
+            self.tools["code_executor"] = CodeExecutorTool()
 
         # Initialize workflows
         self.planning = PlanningWorkflow(llm_client=self.llm_client)

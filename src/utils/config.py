@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     # Environment
     environment: str = Field(default="development")
     log_level: str = Field(default="INFO")
+    enable_code_executor: bool = Field(default=False)
 
     @field_validator("cors_origins", mode="before")
     @classmethod
