@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     chunk_size: int = Field(default=512, ge=100)
     chunk_overlap: int = Field(default=50, ge=0)
 
+    # Ingestion limits
+    ingest_data_dir: str = Field(default="./data/ingest")
+    max_upload_size_mb: int = Field(default=10, ge=1, le=100)
+
     # Environment
     environment: str = Field(default="development")
     log_level: str = Field(default="INFO")

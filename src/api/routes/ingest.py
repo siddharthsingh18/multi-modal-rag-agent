@@ -1,7 +1,10 @@
 """Document ingestion endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from typing import List
+import os
+import tempfile
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from ...api.dependencies import get_retriever_dependency, get_request_id
 from ...api.models import BatchIngestRequest, IngestRequest, IngestResponse
@@ -14,10 +17,50 @@ from ...ingestion.document_loaders import (
 from ...observability.logging import get_logger
 from ...retrieval.vector_store import VectorStoreRetriever
 from ...utils.exceptions import IngestionError
+from ...utils.config import get_settings
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
+ALLOWED_EXTENSIONS = {".html", ".htm", ".md", ".pdf", ".txt"}
+
+
+def _validate_path(path_value: str, *, require_directory: bool = False) -> Path:
+    """Resolve an ingestion path and keep it inside the configured data directory."""
+    settings = get_settings()
+    root = Path(settings.ingest_data_dir).expanduser().resolve()
+    path = Path(path_value).expanduser().resolve()
+
+    if not path.is_relative_to(root):
+        raise HTTPException(status_code=400, detail="Path must be inside the ingestion directory")
+    if require_directory and not path.is_dir():
+        raise HTTPException(status_code=400, detail="Ingestion directory does not exist")
+    if not require_directory and (not path.is_file() or path.suffix.lower() not in ALLOWED_EXTENSIONS):
+        raise HTTPException(status_code=400, detail="Unsupported or missing ingestion file")
+    return path
+
+
+async def _save_upload(file: UploadFile) -> tuple[str, str]:
+    """Save a validated upload without allowing unbounded request bodies."""
+    settings = get_settings()
+    filename = Path(file.filename or "").name
+    suffix = Path(filename).suffix.lower()
+    if not filename or suffix not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
+
+    max_bytes = settings.max_upload_size_mb * 1024 * 1024
+    size = 0
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        try:
+            while chunk := await file.read(1024 * 1024):
+                size += len(chunk)
+                if size > max_bytes:
+                    raise HTTPException(status_code=413, detail="Uploaded file is too large")
+                tmp.write(chunk)
+            return tmp.name, filename
+        except Exception:
+            os.unlink(tmp.name)
+            raise
 
 
 @router.post("", response_model=IngestResponse)
@@ -47,8 +90,9 @@ async def ingest_document(
 
         if request.file_path:
             # Load from file
-            loader = get_loader(request.file_path)
-            documents = await loader.load(request.file_path)
+            path = _validate_path(request.file_path)
+            loader = get_loader(str(path))
+            documents = await loader.load(str(path))
 
         elif request.text:
             # Create document from text
@@ -126,8 +170,9 @@ async def ingest_directory(
 
     try:
         # Load directory
+        directory = _validate_path(request.directory, require_directory=True)
         loader = DirectoryLoader(recursive=request.recursive)
-        documents = await loader.load(request.directory)
+        documents = await loader.load(str(directory))
 
         if not documents:
             return IngestResponse(
@@ -193,15 +238,7 @@ async def upload_file(
 
     try:
         # Save uploaded file temporarily
-        import tempfile
-        from pathlib import Path
-
-        with tempfile.NamedTemporaryFile(
-            delete=False, suffix=Path(file.filename).suffix
-        ) as tmp:
-            content = await file.read()
-            tmp.write(content)
-            tmp_path = tmp.name
+        tmp_path, filename = await _save_upload(file)
 
         # Load and ingest
         try:
@@ -214,7 +251,7 @@ async def upload_file(
 
             texts = [chunk.text for chunk in chunks]
             metadata = [
-                {**chunk.metadata, "filename": file.filename} for chunk in chunks
+                {**chunk.metadata, "filename": filename} for chunk in chunks
             ]
             ids = [chunk.chunk_id for chunk in chunks]
 
@@ -229,7 +266,7 @@ async def upload_file(
                 num_documents=len(documents),
                 num_chunks=len(chunks),
                 document_ids=document_ids,
-                message=f"Successfully uploaded and ingested {file.filename}",
+                message=f"Successfully uploaded and ingested {filename}",
             )
 
         finally:
