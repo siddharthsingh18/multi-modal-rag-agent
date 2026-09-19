@@ -80,6 +80,7 @@ class LLMClient:
             if self.provider == "gemini":
                 response = await self.client.post(
                     self._gemini_url("generateContent"),
+                    headers={"x-goog-api-key": self.api_key},
                     json=self._gemini_payload(
                         prompt,
                         system,
@@ -181,7 +182,8 @@ Answer:"""
             if self.provider == "gemini":
                 async with self.client.stream(
                     "POST",
-                    self._gemini_url("streamGenerateContent") + "&alt=sse",
+                    self._gemini_url("streamGenerateContent") + "?alt=sse",
+                    headers={"x-goog-api-key": self.api_key},
                     json=self._gemini_payload(prompt, system, temperature, max_tokens),
                 ) as response:
                     response.raise_for_status()
@@ -219,7 +221,7 @@ Answer:"""
         """Build a Gemini Generative Language API URL."""
         return (
             "https://generativelanguage.googleapis.com/v1beta/"
-            f"models/{self.model}:{action}?key={self.api_key}"
+            f"models/{self.model}:{action}"
         )
 
     def _gemini_payload(

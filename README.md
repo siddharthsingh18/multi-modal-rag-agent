@@ -157,7 +157,7 @@ LLM_MAX_TOKENS=4096
 # Or use Gemini
 # LLM_PROVIDER=gemini
 # GEMINI_API_KEY=your_gemini_key_here
-# LLM_MODEL=gemini-2.0-flash
+# LLM_MODEL=gemini-3.6-flash
 
 # Vector Database (choose one)
 QDRANT_URL=http://localhost:6333

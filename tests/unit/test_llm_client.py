@@ -20,7 +20,7 @@ def test_gemini_client_uses_configured_provider():
 
     assert client.provider == "gemini"
     assert client._gemini_url("generateContent").endswith(
-        "models/gemini-2.0-flash:generateContent?key=test-gemini-key"
+        "models/gemini-2.0-flash:generateContent"
     )
     assert payload["systemInstruction"]["parts"][0]["text"] == "Be concise."
     assert payload["generationConfig"]["maxOutputTokens"] == 128
