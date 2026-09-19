@@ -154,6 +154,11 @@ LLM_MODEL=claude-3-5-sonnet-20241022
 LLM_TEMPERATURE=0.0
 LLM_MAX_TOKENS=4096
 
+# Or use Gemini
+# LLM_PROVIDER=gemini
+# GEMINI_API_KEY=your_gemini_key_here
+# LLM_MODEL=gemini-2.0-flash
+
 # Vector Database (choose one)
 QDRANT_URL=http://localhost:6333
 # OR

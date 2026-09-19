@@ -47,7 +47,12 @@ async def health_check(
         dependencies["redis"] = f"unhealthy: {str(e)}"
 
     # Check LLM (just check if API key is configured)
-    if settings.anthropic_api_key:
+    provider_key = (
+        settings.gemini_api_key
+        if settings.llm_provider.lower() == "gemini"
+        else settings.anthropic_api_key
+    )
+    if provider_key:
         dependencies["llm"] = "configured"
     else:
         dependencies["llm"] = "not configured"

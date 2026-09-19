@@ -1,9 +1,9 @@
-"""Anthropic Claude LLM client wrapper."""
+"""Provider-neutral async LLM client for Anthropic and Gemini."""
 
 from typing import Any, AsyncIterator, Dict, List, Optional
 
+import httpx
 from anthropic import AsyncAnthropic
-from langchain.schema import HumanMessage, SystemMessage
 
 from ..observability.logging import get_logger
 from ..utils.config import get_settings
@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 
 
 class LLMClient:
-    """Async wrapper for Anthropic Claude API."""
+    """Async wrapper for Anthropic and Gemini generation APIs."""
 
     def __init__(
         self,
@@ -21,23 +21,32 @@ class LLMClient:
         model: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
+        provider: Optional[str] = None,
     ):
         """
         Initialize LLM client.
 
         Args:
-            api_key: Anthropic API key (defaults to settings)
+            api_key: Provider API key (defaults to settings)
             model: Model name (defaults to settings)
             temperature: Sampling temperature (defaults to settings)
             max_tokens: Max tokens to generate (defaults to settings)
+            provider: LLM provider, either ``anthropic`` or ``gemini``
         """
         settings = get_settings()
-        self.api_key = api_key or settings.anthropic_api_key
+        self.provider = (provider or settings.llm_provider).lower()
         self.model = model or settings.llm_model
         self.temperature = temperature if temperature is not None else settings.llm_temperature
         self.max_tokens = max_tokens or settings.llm_max_tokens
 
-        self.client = AsyncAnthropic(api_key=self.api_key)
+        if self.provider == "anthropic":
+            self.api_key = api_key or settings.anthropic_api_key
+            self.client = AsyncAnthropic(api_key=self.api_key)
+        elif self.provider == "gemini":
+            self.api_key = api_key or settings.gemini_api_key
+            self.client = httpx.AsyncClient(timeout=120)
+        else:
+            raise ValueError(f"Unsupported LLM provider: {self.provider}")
 
     async def generate(
         self,
@@ -67,6 +76,21 @@ class LLMClient:
         """
         try:
             logger.debug(f"Generating completion with model {self.model}")
+
+            if self.provider == "gemini":
+                response = await self.client.post(
+                    self._gemini_url("generateContent"),
+                    json=self._gemini_payload(
+                        prompt,
+                        system,
+                        temperature,
+                        max_tokens,
+                        stop_sequences,
+                    ),
+                )
+                response.raise_for_status()
+                data = response.json()
+                return data["candidates"][0]["content"]["parts"][0]["text"]
 
             messages = [{"role": "user", "content": prompt}]
 
@@ -154,6 +178,22 @@ Answer:"""
         try:
             logger.debug(f"Streaming completion with model {self.model}")
 
+            if self.provider == "gemini":
+                async with self.client.stream(
+                    "POST",
+                    self._gemini_url("streamGenerateContent") + "&alt=sse",
+                    json=self._gemini_payload(prompt, system, temperature, max_tokens),
+                ) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if not line.startswith("data: "):
+                            continue
+                        data = __import__("json").loads(line[6:])
+                        parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                        if parts and parts[0].get("text"):
+                            yield parts[0]["text"]
+                return
+
             messages = [{"role": "user", "content": prompt}]
 
             async with self.client.messages.stream(
@@ -175,6 +215,35 @@ Answer:"""
                 original_error=e,
             )
 
+    def _gemini_url(self, action: str) -> str:
+        """Build a Gemini Generative Language API URL."""
+        return (
+            "https://generativelanguage.googleapis.com/v1beta/"
+            f"models/{self.model}:{action}?key={self.api_key}"
+        )
+
+    def _gemini_payload(
+        self,
+        prompt: str,
+        system: Optional[str],
+        temperature: Optional[float],
+        max_tokens: Optional[int],
+        stop_sequences: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Build a Gemini generateContent request body."""
+        payload: Dict[str, Any] = {
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": temperature if temperature is not None else self.temperature,
+                "maxOutputTokens": max_tokens or self.max_tokens,
+            },
+        }
+        if system:
+            payload["systemInstruction"] = {"parts": [{"text": system}]}
+        if stop_sequences:
+            payload["generationConfig"]["stopSequences"] = stop_sequences
+        return payload
+
     async def chat(
         self,
         messages: List[Dict[str, str]],
@@ -194,6 +263,12 @@ Answer:"""
         """
         try:
             logger.debug(f"Chat completion with {len(messages)} messages")
+
+            if self.provider == "gemini":
+                conversation = "\n\n".join(
+                    f"{message['role'].title()}: {message['content']}" for message in messages
+                )
+                return await self.generate(prompt=conversation, system=system)
 
             response = await self.client.messages.create(
                 model=self.model,

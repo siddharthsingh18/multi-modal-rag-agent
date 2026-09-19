@@ -18,7 +18,9 @@ class Settings(BaseSettings):
     )
 
     # LLM Configuration
-    anthropic_api_key: str = Field(..., description="Anthropic API key")
+    llm_provider: str = Field(default="anthropic", description="anthropic or gemini")
+    anthropic_api_key: str = Field(default="", description="Anthropic API key")
+    gemini_api_key: str = Field(default="", description="Google Gemini API key")
     llm_model: str = Field(
         default="claude-3-5-sonnet-20241022",
         description="Claude model to use",
