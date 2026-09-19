@@ -180,6 +180,20 @@ CHUNK_OVERLAP=50
 
 ## 📚 Usage
 
+### Web Frontend
+
+Run the backend and its Qdrant/Redis services first, then start the React workspace:
+
+```bash
+cp frontend/.env.example frontend/.env
+make frontend-install
+make frontend-dev
+```
+
+Open http://localhost:5173. The workspace supports text ingestion, PDF/TXT/MD/HTML
+upload, grounded questions, retrieved source passages, API health status, and API-key
+configuration. For a containerized stack, run `docker compose -f docker/docker-compose.yml up` and open http://localhost:3000.
+
 ### Starting the Application
 
 **Development mode:**

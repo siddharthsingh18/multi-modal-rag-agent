@@ -1,4 +1,4 @@
-.PHONY: install test run lint format clean docker-up docker-down ingest evaluate
+.PHONY: install test run lint format clean docker-up docker-down ingest evaluate frontend-install frontend-dev frontend-build frontend-test
 
 # Installation
 install:
@@ -57,6 +57,19 @@ evaluate:
 
 benchmark:
 	python scripts/benchmark.py
+
+# Frontend
+frontend-install:
+	cd frontend && npm ci
+
+frontend-dev:
+	cd frontend && npm run dev
+
+frontend-build:
+	cd frontend && npm run build
+
+frontend-test:
+	cd frontend && npm run lint
 
 # Cleanup
 clean:
